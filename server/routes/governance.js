@@ -32,7 +32,7 @@ router.get('/flags', authenticateUser, authorize(['flags:read']), async (_req, r
   try {
     const { data, error } = await supabase
       .from('flags_outdated')
-      .select('*')
+      .select('id,item_id,user_id,note,status,created_at,knowledge_items(title,status)')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
 
