@@ -1,0 +1,19 @@
+{
+  "name": "mobile-web-component",
+  "version": "1.0.0",
+  "description": "Mobile web component with React, Tailwind, Node.js, Express, and Supabase",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && nodemon index.js",
+    "client": "cd client && npm run dev",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build"
+  },
+  "keywords": ["react", "tailwind", "express", "supabase"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
