@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { PermissionGuard, RoleGuard } from '../components/PermissionGuard'
+import { usePermission } from '../hooks/usePermission'
 
 const statusOptions = ['draft', 'in_review', 'published', 'rejected', 'needs_changes']
 
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [flags, setFlags] = useState([])
   const [trainingEvents, setTrainingEvents] = useState([])
   const [kpis, setKpis] = useState([])
+  const [bookmarks, setBookmarks] = useState([])
   const [loadingFlags, setLoadingFlags] = useState(false)
   const [loadingTraining, setLoadingTraining] = useState(false)
   const [loadingKpis, setLoadingKpis] = useState(false)
@@ -31,6 +33,9 @@ export default function Dashboard() {
   const [flagModalOpen, setFlagModalOpen] = useState(false)
   const [flagNote, setFlagNote] = useState('')
   const [flagItemId, setFlagItemId] = useState(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItemId, setEditingItemId] = useState(null)
+  const [editForm, setEditForm] = useState({ title: '', summary: '', item_type: '', content_uri: '', status: 'draft', categoryIds: [], tagIds: [], region_code: '' })
   const [toast, setToast] = useState(null)
   const [creatingLookup, setCreatingLookup] = useState({ category: false, tag: false })
   const [newCategory, setNewCategory] = useState('')
@@ -44,6 +49,10 @@ export default function Dashboard() {
 
   const canGovern = userAccount && ['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)
   const canViewKpi = userAccount && ['TopManager', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)
+  const canUpdateAny = usePermission(['knowledge:update', 'knowledge:*'])
+  const canUpdateOwn = usePermission('knowledge:update_own')
+  const canDeleteAny = usePermission('knowledge:*')
+  const canDeleteOwn = usePermission('knowledge:delete_own')
 
   const fetchTraining = async () => {
     if (!user) return
@@ -68,6 +77,15 @@ export default function Dashboard() {
       console.error('Error loading KPI snapshots', error)
     } finally {
       setLoadingKpis(false)
+    }
+  }
+
+  const fetchBookmarks = async () => {
+    try {
+      const { data } = await api.get('/knowledge/bookmarks')
+      setBookmarks(data || [])
+    } catch (error) {
+      console.error('Error loading bookmarks', error)
     }
   }
 
@@ -134,6 +152,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return
     fetchTraining()
+    fetchBookmarks()
   }, [user])
 
   useEffect(() => {
@@ -273,9 +292,79 @@ export default function Dashboard() {
   const bookmarkItem = async (id) => {
     try {
       await api.post(`/knowledge/${id}/bookmarks`)
-      alert('Bookmarked')
+      fetchBookmarks()
+      setToast({ type: 'success', message: 'Bookmarked' })
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to bookmark')
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to bookmark' })
+    }
+  }
+
+  const removeBookmark = async (id) => {
+    try {
+      await api.delete(`/knowledge/${id}/bookmarks`)
+      setBookmarks((prev) => prev.filter((b) => b.item_id !== id))
+      setToast({ type: 'success', message: 'Bookmark removed.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to remove bookmark' })
+    }
+  }
+
+  const openEditModal = (item) => {
+    setEditingItemId(item.id)
+    setEditForm({
+      title: item.title || '',
+      summary: item.summary || '',
+      item_type: item.item_type || '',
+      content_uri: item.content_uri || '',
+      status: item.status || 'draft',
+      region_code: item.region_code || '',
+      categoryIds: (item.item_categories || []).map((c) => c.category_id),
+      tagIds: (item.item_tags || []).map((t) => t.tag_id)
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdate = async (e) => {
+    e.preventDefault()
+    if (!editingItemId) return
+    try {
+      await api.patch(`/knowledge/${editingItemId}`, {
+        title: editForm.title,
+        summary: editForm.summary,
+        item_type: editForm.item_type,
+        content_uri: editForm.content_uri,
+        status: editForm.status,
+        region_code: editForm.region_code || userAccount?.region_code,
+        categoryIds: editForm.categoryIds,
+        tagIds: editForm.tagIds
+      })
+      setShowEditModal(false)
+      setEditingItemId(null)
+      const { data } = await api.get('/knowledge', {
+        params: {
+          q: filters.q || undefined,
+          status: filters.status || undefined,
+          region_code: filters.region || undefined,
+          tag_id: filters.tag || undefined,
+          category_id: filters.category || undefined
+        }
+      })
+      setKnowledge(data || [])
+      setToast({ type: 'success', message: 'Knowledge item updated.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to update item' })
+    }
+  }
+
+  const handleDelete = async (item) => {
+    const confirmDelete = window.confirm('Delete this knowledge item?')
+    if (!confirmDelete) return
+    try {
+      await api.delete(`/knowledge/${item.id}`)
+      setKnowledge((prev) => prev.filter((k) => k.id !== item.id))
+      setToast({ type: 'success', message: 'Knowledge item deleted.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to delete item' })
     }
   }
 
@@ -432,6 +521,16 @@ export default function Dashboard() {
                         <td className="px-4 py-3 text-sm space-x-3">
                           <button onClick={() => bookmarkItem(item.id)} className="text-primary-600 hover:text-primary-800">Bookmark</button>
                           <button onClick={() => openFlagModal(item.id)} className="text-amber-600 hover:text-amber-800">Flag</button>
+                          {((canUpdateAny || (canUpdateOwn && item.owner_id === userAccount?.id)) || (canDeleteAny || (canDeleteOwn && item.owner_id === userAccount?.id))) && (
+                            <>
+                              {(canUpdateAny || (canUpdateOwn && item.owner_id === userAccount?.id)) && (
+                                <button onClick={() => openEditModal(item)} className="text-indigo-600 hover:text-indigo-800">Edit</button>
+                              )}
+                              {(canDeleteAny || (canDeleteOwn && item.owner_id === userAccount?.id)) && (
+                                <button onClick={() => handleDelete(item)} className="text-rose-600 hover:text-rose-800">Delete</button>
+                              )}
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -440,6 +539,36 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          <PermissionGuard require={['bookmark:read']}>
+            <div className="card lg:col-span-2">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">My bookmarks</h2>
+                  <p className="text-sm text-gray-600">Quick access to items you've saved.</p>
+                </div>
+                <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full">Personal</span>
+              </div>
+              {bookmarks.length === 0 ? (
+                <p className="text-gray-500">No bookmarks yet. Use “Bookmark” in the table to save items.</p>
+              ) : (
+                <ul className="divide-y divide-gray-200">
+                  {bookmarks.map((bm) => (
+                    <li key={bm.id} className="py-3 flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-gray-900">{bm.knowledge_items?.title || 'Unknown item'}</p>
+                        <p className="text-sm text-gray-600">{bm.knowledge_items?.summary || bm.knowledge_items?.item_type || 'No summary available'}</p>
+                        {bm.knowledge_items?.status && (
+                          <span className="inline-block text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">{bm.knowledge_items.status}</span>
+                        )}
+                      </div>
+                      <button onClick={() => removeBookmark(bm.item_id)} className="text-sm text-rose-600 hover:text-rose-800">Remove</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </PermissionGuard>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -480,11 +609,11 @@ export default function Dashboard() {
           <div className="card">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Governance queue</h2>
-              <PermissionGuard require={['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin']} fallback={<span className="text-xs text-gray-500">View only</span>}>
+              <RoleGuard require={['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin']} fallback={<span className="text-xs text-gray-500">View only</span>}>
                 <span className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded-full">Council</span>
-              </PermissionGuard>
+              </RoleGuard>
             </div>
-            <PermissionGuard
+            <RoleGuard
               require={['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin']}
               fallback={<p className="text-gray-500">You can flag items from the table; governance users see the review queue.</p>}
             >
@@ -517,7 +646,7 @@ export default function Dashboard() {
                   ))}
                 </ul>
               )}
-            </PermissionGuard>
+            </RoleGuard>
           </div>
         </div>
 
@@ -768,6 +897,141 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <span>{toast.message}</span>
               <button onClick={() => setToast(null)} className="text-white/80 hover:text-white">×</button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Knowledge Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowEditModal(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-auto p-6 md:p-8 space-y-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-semibold text-gray-900">Edit knowledge item</h3>
+                  <p className="text-sm text-gray-600">Update title, summary, link, region, categories, tags, and status.</p>
+                </div>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
+              </div>
+
+              <PermissionGuard require={['knowledge:update', 'knowledge:update_own', 'knowledge:*']} fallback={<p className="text-red-600">You do not have permission to edit knowledge items.</p>}>
+                <form onSubmit={handleUpdate} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-800">Title</label>
+                      <input
+                        className="input-field"
+                        placeholder="e.g., DKN Playbook for Onboarding"
+                        required
+                        value={editForm.title}
+                        onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-800">Content link</label>
+                      <input
+                        className="input-field"
+                        placeholder="https://..."
+                        value={editForm.content_uri}
+                        onChange={(e) => setEditForm((f) => ({ ...f, content_uri: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Summary</label>
+                    <textarea
+                      className="input-field"
+                      placeholder="Brief synopsis that matches the PDF guidance."
+                      rows="3"
+                      value={editForm.summary}
+                      onChange={(e) => setEditForm((f) => ({ ...f, summary: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-800">Type</label>
+                      <input
+                        className="input-field"
+                        placeholder="Playbook, SOP, Template"
+                        value={editForm.item_type}
+                        onChange={(e) => setEditForm((f) => ({ ...f, item_type: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-800">Status</label>
+                      <select
+                        className="input-field"
+                        value={editForm.status}
+                        onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                      >
+                        {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-800">Region</label>
+                      <input
+                        className="input-field"
+                        placeholder="GLOBAL or region code"
+                        value={editForm.region_code}
+                        onChange={(e) => setEditForm((f) => ({ ...f, region_code: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-800">Categories</p>
+                      <p className="text-xs text-gray-500">Pick themes like Onboarding, SOPs, Templates</p>
+                    </div>
+                    {categories.length === 0 ? (
+                      <p className="text-xs text-gray-500">No categories yet.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((c) => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            onClick={() => setEditForm((f) => ({ ...f, categoryIds: toggleArrayValue(f.categoryIds, c.id) }))}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${editForm.categoryIds.includes(c.id) ? 'bg-primary-100 border-primary-300 text-primary-800' : 'border-gray-200 text-gray-700 hover:border-primary-200'}`}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-800">Tags</p>
+                      <p className="text-xs text-gray-500">Add labels like AI, Playbook, Compliance</p>
+                    </div>
+                    {tags.length === 0 ? (
+                      <p className="text-xs text-gray-500">No tags yet.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((t) => (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => setEditForm((f) => ({ ...f, tagIds: toggleArrayValue(f.tagIds, t.id) }))}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${editForm.tagIds.includes(t.id) ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'border-gray-200 text-gray-700 hover:border-emerald-200'}`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary">Cancel</button>
+                    <button type="submit" className="btn-primary">Save changes</button>
+                  </div>
+                </form>
+              </PermissionGuard>
             </div>
           </div>
         )}

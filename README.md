@@ -26,6 +26,19 @@ A full-stack mobile-responsive web application built with React, Tailwind CSS, N
    npm run dev
    ```
 
+## Render Deployment
+
+This repository includes a `render.yaml` for a two-service deployment (API + static client).
+
+1. Push this repo to GitHub and create a **Blueprint** on Render pointing to it.
+2. Render will read `render.yaml` and provision:
+   - **mobile-web-api** (Node web service) at `/healthz` for health checks.
+   - **mobile-web-client** (static site) publishing `client/dist`.
+3. Set environment variables in Render dashboard:
+   - API: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `CLIENT_URL`, `ALLOWED_ORIGINS` (use the static site URL), `NODE_ENV=production`.
+   - Client: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (anonymous/public), `VITE_API_URL` (Render auto-fills from the API service; verify after first deploy).
+4. Trigger a deploy. The API will honor the allow-list in `ALLOWED_ORIGINS` for CORS.
+
 ## Project Structure
 
 ```
@@ -45,5 +58,7 @@ A full-stack mobile-responsive web application built with React, Tailwind CSS, N
 - `PORT` - Server port (default: 3001)
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_SERVICE_KEY` - Your Supabase service role key
+- `CLIENT_URL` - Primary frontend origin for CORS
+- `ALLOWED_ORIGINS` - Comma-separated origins allowed by CORS
 # DKN-System
 # DKN-System

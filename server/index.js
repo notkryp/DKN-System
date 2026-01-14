@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import compression from 'compression'
 import dotenv from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 import knowledgeRoutes from './routes/knowledge.js'
@@ -15,6 +16,16 @@ dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const NODE_ENV = process.env.NODE_ENV || 'development'
+
+const requiredEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']
+const missingEnv = requiredEnv.filter((key) => !process.env[key])
+
+if (missingEnv.length) {
+  console.error(`Missing environment variables: ${missingEnv.join(', ')}`)
+  console.error('Set them in Render dashboard or a local .env file before starting the server.')
+  process.exit(1)
+}
 
 // Initialize Supabase client
 export const supabase = createClient(
@@ -22,19 +33,44 @@ export const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY || ''
 )
 
+// CORS with explicit allow-list and dev-safe fallback
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || process.env.CLIENT_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+)
+
+if (allowedOrigins.size === 0) {
+  allowedOrigins.add('http://localhost:5173')
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true)
+    }
+    console.warn(`CORS blocked origin: ${origin}`)
+    return callback(new Error('Not allowed by CORS'))
+  },
+  credentials: true
+}
+
 // Middleware
 app.use(helmet())
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}))
+app.use(compression())
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(morgan('dev'))
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
 
 // Routes
 app.get('/', (req, res) => {
   res.json({ message: 'Mobile Web Component API', version: '1.0.0' })
+})
+
+app.get('/healthz', (req, res) => {
+  res.json({ status: 'ok' })
 })
 
 app.use('/api/knowledge', knowledgeRoutes)
@@ -62,5 +98,5 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`📝 Environment: ${NODE_ENV}`)
 })
