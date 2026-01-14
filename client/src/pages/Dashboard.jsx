@@ -166,8 +166,9 @@ export default function Dashboard() {
       setShowCreateModal(false)
       const { data } = await api.get('/knowledge')
       setKnowledge(data || [])
+      setToast({ type: 'success', message: 'Knowledge item created.' })
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create knowledge item')
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to create knowledge item' })
     }
   }
 
@@ -184,8 +185,9 @@ export default function Dashboard() {
       setTrainingForm({ topic: '', mode: '', scheduled_at: '', duration_minutes: '', notes: '' })
       setShowTrainingModal(false)
       fetchTraining()
+      setToast({ type: 'success', message: 'Training event created.' })
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create training event')
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to create training event' })
     }
   }
 
@@ -202,8 +204,67 @@ export default function Dashboard() {
       setKpiForm({ period_start: '', period_end: '', duplication_rate: '', average_onboarding_weeks: '', collaboration_index: '' })
       setShowKpiModal(false)
       fetchKpis()
+      setToast({ type: 'success', message: 'KPI snapshot recorded.' })
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create KPI snapshot')
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to create KPI snapshot' })
+    }
+  }
+
+  const requestTrainingParticipation = async (eventId) => {
+    try {
+      await api.post(`/training/events/${eventId}/participants`, {})
+      setToast({ type: 'success', message: 'Participation requested.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to request participation' })
+    }
+  }
+
+  const openFlagModal = (id) => {
+    setFlagItemId(id)
+    setFlagNote('')
+    setFlagModalOpen(true)
+  }
+
+  const submitFlag = async (e) => {
+    e.preventDefault()
+    if (!flagItemId) return
+    try {
+      await api.post(`/knowledge/${flagItemId}/flags`, { note: flagNote })
+      setFlagModalOpen(false)
+      setFlagNote('')
+      setToast({ type: 'success', message: 'Flag submitted.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to flag item' })
+    }
+  }
+
+  const createCategory = async () => {
+    if (!newCategory.trim()) return
+    setCreatingLookup((s) => ({ ...s, category: true }))
+    try {
+      const { data } = await api.post('/lookups/categories', { name: newCategory.trim() })
+      setCategories((prev) => [...prev, data])
+      setNewCategory('')
+      setToast({ type: 'success', message: 'Category added.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to add category' })
+    } finally {
+      setCreatingLookup((s) => ({ ...s, category: false }))
+    }
+  }
+
+  const createTag = async () => {
+    if (!newTag.trim()) return
+    setCreatingLookup((s) => ({ ...s, tag: true }))
+    try {
+      const { data } = await api.post('/lookups/tags', { label: newTag.trim(), tag_type: 'custom' })
+      setTags((prev) => [...prev, data])
+      setNewTag('')
+      setToast({ type: 'success', message: 'Tag added.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to add tag' })
+    } finally {
+      setCreatingLookup((s) => ({ ...s, tag: false }))
     }
   }
 
@@ -233,8 +294,9 @@ export default function Dashboard() {
     try {
       await api.patch(`/governance/flags/${id}/resolve`)
       setFlags((prev) => prev.filter((f) => f.id !== id))
+      setToast({ type: 'success', message: 'Flag resolved.' })
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to resolve flag')
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to resolve flag' })
     }
   }
 
@@ -369,7 +431,7 @@ export default function Dashboard() {
                         <td className="px-4 py-3 text-sm text-gray-700">{item.region_code}</td>
                         <td className="px-4 py-3 text-sm space-x-3">
                           <button onClick={() => bookmarkItem(item.id)} className="text-primary-600 hover:text-primary-800">Bookmark</button>
-                          <button onClick={() => flagItem(item.id)} className="text-amber-600 hover:text-amber-800">Flag</button>
+                          <button onClick={() => openFlagModal(item.id)} className="text-amber-600 hover:text-amber-800">Flag</button>
                         </td>
                       </tr>
                     ))}
@@ -500,6 +562,40 @@ export default function Dashboard() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Flag Modal */}
+        {flagModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setFlagModalOpen(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-xl w-full mx-auto p-6 md:p-7 space-y-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-semibold text-gray-900">Flag item</h3>
+                  <p className="text-sm text-gray-600">Describe what’s outdated or incorrect. Governance will review.</p>
+                </div>
+                <button onClick={() => setFlagModalOpen(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
+              </div>
+
+              <form onSubmit={submitFlag} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-800">Flag note</label>
+                  <textarea
+                    className="input-field"
+                    rows="4"
+                    required
+                    placeholder="Explain what needs attention"
+                    value={flagNote}
+                    onChange={(e) => setFlagNote(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setFlagModalOpen(false)} className="btn-secondary">Cancel</button>
+                  <button type="submit" className="btn-primary">Submit flag</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -666,6 +762,16 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Toast */}
+        {toast && (
+          <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+            <div className="flex items-center gap-3">
+              <span>{toast.message}</span>
+              <button onClick={() => setToast(null)} className="text-white/80 hover:text-white">×</button>
+            </div>
+          </div>
+        )}
+
         {/* Create Knowledge Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -750,18 +856,33 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-gray-800">Categories</p>
                       <p className="text-xs text-gray-500">Pick themes like Onboarding, SOPs, Templates</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {categories.map((c) => (
-                        <button
-                          type="button"
-                          key={c.id}
-                          onClick={() => setForm((f) => ({ ...f, categoryIds: toggleArrayValue(f.categoryIds, c.id) }))}
-                          className={`px-3 py-1 rounded-full text-xs border transition ${form.categoryIds.includes(c.id) ? 'bg-primary-100 border-primary-300 text-primary-800' : 'border-gray-200 text-gray-700 hover:border-primary-200'}`}
-                        >
-                          {c.name}
-                        </button>
-                      ))}
-                    </div>
+                    {categories.length === 0 ? (
+                      <p className="text-xs text-gray-500">No categories yet. {userAccount?.role_code === 'SystemAdmin' || userAccount?.role_code === 'KnowledgeSupervisor' ? 'Add one below.' : 'Ask a supervisor/admin to add.'}</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((c) => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            onClick={() => setForm((f) => ({ ...f, categoryIds: toggleArrayValue(f.categoryIds, c.id) }))}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${form.categoryIds.includes(c.id) ? 'bg-primary-100 border-primary-300 text-primary-800' : 'border-gray-200 text-gray-700 hover:border-primary-200'}`}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <PermissionGuard require={['lookups:create']}>
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          className="input-field flex-1"
+                          placeholder="Add new category"
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                        />
+                        <button type="button" onClick={createCategory} className="btn-secondary text-sm" disabled={creatingLookup.category}>Add</button>
+                      </div>
+                    </PermissionGuard>
                   </div>
 
                   <div className="space-y-2">
@@ -769,18 +890,33 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-gray-800">Tags</p>
                       <p className="text-xs text-gray-500">Add labels like AI, Playbook, Compliance</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((t) => (
-                        <button
-                          type="button"
-                          key={t.id}
-                          onClick={() => setForm((f) => ({ ...f, tagIds: toggleArrayValue(f.tagIds, t.id) }))}
-                          className={`px-3 py-1 rounded-full text-xs border transition ${form.tagIds.includes(t.id) ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'border-gray-200 text-gray-700 hover:border-emerald-200'}`}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
+                    {tags.length === 0 ? (
+                      <p className="text-xs text-gray-500">No tags yet. {userAccount?.role_code === 'SystemAdmin' || userAccount?.role_code === 'KnowledgeSupervisor' ? 'Add one below.' : 'Ask a supervisor/admin to add.'}</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((t) => (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => setForm((f) => ({ ...f, tagIds: toggleArrayValue(f.tagIds, t.id) }))}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${form.tagIds.includes(t.id) ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'border-gray-200 text-gray-700 hover:border-emerald-200'}`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <PermissionGuard require={['lookups:create']}>
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          className="input-field flex-1"
+                          placeholder="Add new tag"
+                          value={newTag}
+                          onChange={(e) => setNewTag(e.target.value)}
+                        />
+                        <button type="button" onClick={createTag} className="btn-secondary text-sm" disabled={creatingLookup.tag}>Add</button>
+                      </div>
+                    </PermissionGuard>
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-2">
