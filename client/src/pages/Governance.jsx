@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import { FlagIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Spinner } from '../components/ui/spinner'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
+import { Shield, Flag, CheckCircle, AlertTriangle } from 'lucide-react'
 
 export default function Governance() {
   const { user, userAccount, loading } = useAuth()
@@ -53,110 +58,77 @@ export default function Governance() {
     e.preventDefault()
     if (!selectedItem) return
     try {
-      await api.post('/governance/flags', {
-        item_id: selectedItem,
+      await api.post(`/knowledge/${selectedItem}/flags`, {
         note: flagNote
       })
       setShowModal(false)
       setFlagNote('')
       setSelectedItem(null)
       fetchFlags()
+      alert('Item flagged successfully')
     } catch (error) {
       console.error('Error flagging item', error)
+      alert('Failed to flag item: ' + (error.response?.data?.error || error.message))
     }
   }
 
   const resolveFlag = async (flagId) => {
     try {
-      await api.patch(`/governance/flags/${flagId}`, { status: 'resolved' })
+      await api.patch(`/governance/flags/${flagId}/resolve`)
       fetchFlags()
+      alert('Flag resolved successfully')
     } catch (error) {
       console.error('Error resolving flag', error)
+      alert('Failed to resolve flag')
     }
   }
 
-  if (loading) {
+  if (loading || loadingFlags) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <Spinner className="h-12 w-12 mx-auto" />
+          <p className="text-gray-500">Loading governance data...</p>
+        </div>
       </div>
     )
   }
 
+  const activeFlags = flags.filter(f => f.status === 'open')
+  const resolvedFlags = flags.filter(f => f.status === 'resolved')
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Governance & Flags</h1>
-          <p className="text-gray-600 mt-1">Review and manage flagged knowledge items</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Shield className="w-8 h-8 text-purple-600" />
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Governance</h1>
+            <p className="text-gray-500 mt-1">Manage content quality and compliance</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition font-medium"
-        >
-          Flag an Item
-        </button>
-      </div>
-
-      {loadingFlags ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        </div>
-      ) : flags.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <ShieldCheckIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No flagged items</h3>
-          <p className="text-gray-500">All knowledge items are in good standing</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {flags.map((flag) => (
-            <div key={flag.id} className="bg-white rounded-lg shadow-md border border-orange-200 p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <FlagIcon className="w-5 h-5 text-purple-600" />
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      flag.status === 'open' ? 'bg-purple-100 text-purple-700' : 'bg-purple-200 text-purple-800'
-                    }`}>
-                      {flag.status}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Item ID: {flag.item_id}
-                  </h3>
-                  <p className="text-gray-600 mb-3">{flag.note}</p>
-                  <p className="text-sm text-gray-500">
-                    Flagged on {new Date(flag.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                {flag.status === 'open' && (
-                  <button
-                    onClick={() => resolveFlag(flag.id)}
-                    className="ml-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium"
-                  >
-                    Resolve
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Flag Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Flag Knowledge Item</h2>
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogTrigger asChild>
+            <Button>
+              <Flag className="w-4 h-4 mr-2" />
+              Flag Content
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Flag Knowledge Item</DialogTitle>
+              <DialogDescription>Select an item and provide a reason for flagging</DialogDescription>
+            </DialogHeader>
             <form onSubmit={handleFlagItem} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Item</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Item
+                </label>
                 <select
-                  required
                   value={selectedItem || ''}
                   onChange={(e) => setSelectedItem(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="flex w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                  required
                 >
                   <option value="">Choose an item...</option>
                   {knowledge.map((item) => (
@@ -166,42 +138,113 @@ export default function Governance() {
                   ))}
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for flagging</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason
+                </label>
                 <textarea
-                  required
                   value={flagNote}
                   onChange={(e) => setFlagNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows="4"
-                  placeholder="Explain why this item needs attention..."
+                  placeholder="Explain why this content needs review..."
+                  className="flex w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 min-h-[100px]"
+                  required
                 />
               </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition font-medium"
-                >
-                  Flag Item
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false)
-                    setFlagNote('')
-                    setSelectedItem(null)
-                  }}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition font-medium"
-                >
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                   Cancel
-                </button>
+                </Button>
+                <Button type="submit">Submit Flag</Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Active Flags</p>
+                <p className="text-3xl font-bold text-gray-900">{activeFlags.length}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-red-100">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Resolved</p>
+                <p className="text-3xl font-bold text-gray-900">{resolvedFlags.length}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-green-100">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Items</p>
+                <p className="text-3xl font-bold text-gray-900">{knowledge.length}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-purple-100">
+                <Shield className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Flags</CardTitle>
+          <CardDescription>Items requiring governance review</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {activeFlags.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <CheckCircle className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <p>No active flags</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeFlags.map((flag) => (
+                <div key={flag.id} className="flex items-start justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Flag className="w-4 h-4 text-red-600" />
+                      <span className="font-medium text-gray-900">
+                        {flag.knowledge_items?.title || `Item #${flag.item_id}`}
+                      </span>
+                      <Badge variant="destructive">Open</Badge>
+                    </div>
+                    <p className="text-sm text-gray-600">{flag.note}</p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Flagged on {new Date(flag.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resolveFlag(flag.id)}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Resolve
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

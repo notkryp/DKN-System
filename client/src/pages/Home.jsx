@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { Card, CardContent } from '../components/ui/card'
+import { Button } from '../components/ui/button'
 
 const personas = [
   { title: 'Consultant', text: 'Search, filter, and consume knowledge tailored to your region and role.' },
@@ -24,17 +26,17 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4">
               {!user && (
                 <>
-                  <Link to="/register" className="bg-white text-purple-700 hover:bg-purple-50 font-semibold py-3 px-6 rounded-lg transition">
-                    Create account
+                  <Link to="/register">
+                    <Button size="lg" className="bg-white text-purple-700 hover:bg-purple-50 w-full sm:w-auto">Create account</Button>
                   </Link>
-                  <Link to="/login" className="border-2 border-white text-white hover:bg-white hover:text-purple-700 font-semibold py-3 px-6 rounded-lg transition">
-                    Sign in
+                  <Link to="/login">
+                    <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-purple-700 w-full sm:w-auto">Sign in</Button>
                   </Link>
                 </>
               )}
               {user && (
-                <Link to="/dashboard" className="bg-white text-purple-700 hover:bg-purple-50 font-semibold py-3 px-6 rounded-lg transition">
-                  Go to dashboard
+                <Link to="/dashboard">
+                  <Button size="lg" className="bg-white text-purple-700 hover:bg-purple-50 w-full sm:w-auto">Go to dashboard</Button>
                 </Link>
               )}
             </div>
@@ -72,10 +74,12 @@ export default function Home() {
           <p className="text-center text-gray-600 mb-10">Mapped directly to the PDF type model and use cases.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {personas.map((p) => (
-              <div key={p.title} className="card h-full">
-                <h3 className="text-xl font-semibold mb-2">{p.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{p.text}</p>
-              </div>
+              <Card key={p.title} className="h-full">
+                <CardContent className="pt-6">
+                  <h3 className="text-xl font-semibold mb-2">{p.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{p.text}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>

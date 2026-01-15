@@ -3,6 +3,20 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { PermissionGuard, RoleGuard } from '../components/PermissionGuard'
+import { Card, CardContent } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { Badge } from '../components/ui/badge'
+import { Spinner } from '../components/ui/spinner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '../components/ui/dialog'
 import { usePermission } from '../hooks/usePermission'
 
 const statusOptions = ['draft', 'in_review', 'published', 'rejected', 'needs_changes']
@@ -394,9 +408,9 @@ export default function Dashboard() {
   if (loading || !user) {
     return (
       <div className="min-h-[calc(100vh-theme(spacing.32))] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        <div className="text-center space-y-4">
+          <Spinner className="h-12 w-12 mx-auto" />
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
@@ -410,23 +424,20 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-gray-600">Create, govern, and measure knowledge items as outlined in the PDF use cases.</p>
             <PermissionGuard require={['knowledge:create']}>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn-primary w-full sm:w-auto"
-              >
+              <Button onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto">
                 + Add knowledge
-              </button>
+              </Button>
             </PermissionGuard>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-8">
-          <div className="card lg:col-span-2">
+          <Card className="lg:col-span-2">
+            <CardContent>
             <div className="flex flex-wrap gap-3 items-end mb-4">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-xs text-gray-500">Search</label>
-                <input
-                  className="input-field"
+                <Input
                   placeholder="Title contains..."
                   value={filters.q}
                   onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
@@ -435,7 +446,7 @@ export default function Dashboard() {
               <div>
                 <label className="text-xs text-gray-500">Status</label>
                 <select
-                  className="input-field"
+                  className="flex w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
                   value={filters.status}
                   onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
                 >
@@ -445,8 +456,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <label className="text-xs text-gray-500">Region</label>
-                <input
-                  className="input-field"
+                <Input
                   placeholder="GLOBAL"
                   value={filters.region}
                   onChange={(e) => setFilters((f) => ({ ...f, region: e.target.value }))}
@@ -455,7 +465,7 @@ export default function Dashboard() {
               <div>
                 <label className="text-xs text-gray-500">Category</label>
                 <select
-                  className="input-field"
+                  className="flex w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
                   value={filters.category}
                   onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}
                 >
@@ -466,7 +476,7 @@ export default function Dashboard() {
               <div>
                 <label className="text-xs text-gray-500">Tag</label>
                 <select
-                  className="input-field"
+                  className="flex w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
                   value={filters.tag}
                   onChange={(e) => setFilters((f) => ({ ...f, tag: e.target.value }))}
                 >
@@ -492,25 +502,32 @@ export default function Dashboard() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                   <tbody className="bg-white divide-y divide-gray-200">
                     {knowledge.map((item) => (
-                      <tr key={item.id}>
+                     <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.title}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs ${statusClass(item.status)}`}>{item.status}</span>
+                          <Badge variant={
+                            item.status === 'published' ? 'success' :
+                            item.status === 'rejected' ? 'destructive' :
+                            item.status === 'in_review' || item.status === 'needs_changes' ? 'warning' :
+                            'secondary'
+                          }>
+                            {item.status}
+                          </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">{item.item_type || '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">{item.region_code}</td>
-                        <td className="px-4 py-3 text-sm space-x-3">
-                          <button onClick={() => bookmarkItem(item.id)} className="text-primary-600 hover:text-primary-800">Bookmark</button>
-                          <button onClick={() => openFlagModal(item.id)} className="text-primary-600 hover:text-primary-800">Flag</button>
+                        <td className="px-4 py-3 text-sm space-x-2">
+                          <Button size="sm" variant="ghost" onClick={() => bookmarkItem(item.id)}>Bookmark</Button>
+                          <Button size="sm" variant="ghost" onClick={() => openFlagModal(item.id)}>Flag</Button>
                           {((canUpdateAny || (canUpdateOwn && item.owner_id === userAccount?.id)) || (canDeleteAny || (canDeleteOwn && item.owner_id === userAccount?.id))) && (
                             <>
                               {(canUpdateAny || (canUpdateOwn && item.owner_id === userAccount?.id)) && (
-                                <button onClick={() => openEditModal(item)} className="text-primary-600 hover:text-primary-800">Edit</button>
+                                <Button size="sm" variant="ghost" onClick={() => openEditModal(item)}>Edit</Button>
                               )}
                               {(canDeleteAny || (canDeleteOwn && item.owner_id === userAccount?.id)) && (
-                                <button onClick={() => handleDelete(item)} className="text-primary-600 hover:text-primary-800">Delete</button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDelete(item)}>Delete</Button>
                               )}
                             </>
                           )}
@@ -521,205 +538,183 @@ export default function Dashboard() {
                 </table>
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Flag Modal */}
-        {flagModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setFlagModalOpen(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-xl w-full mx-auto p-6 md:p-7 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold text-gray-900">Flag item</h3>
-                  <p className="text-sm text-gray-600">Describe what’s outdated or incorrect. Governance will review.</p>
-                </div>
-                <button onClick={() => setFlagModalOpen(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
+        <Dialog open={flagModalOpen} onOpenChange={setFlagModalOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Flag item</DialogTitle>
+              <DialogDescription>Describe what’s outdated or incorrect. Governance will review.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submitFlag} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-800">Flag note</label>
+                <Textarea
+                  rows="4"
+                  required
+                  placeholder="Explain what needs attention"
+                  value={flagNote}
+                  onChange={(e) => setFlagNote(e.target.value)}
+                />
               </div>
-
-              <form onSubmit={submitFlag} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-800">Flag note</label>
-                  <textarea
-                    className="input-field"
-                    rows="4"
-                    required
-                    placeholder="Explain what needs attention"
-                    value={flagNote}
-                    onChange={(e) => setFlagNote(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => setFlagModalOpen(false)} className="btn-secondary">Cancel</button>
-                  <button type="submit" className="btn-primary">Submit flag</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setFlagModalOpen(false)}>Cancel</Button>
+                <Button type="submit">Submit flag</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Training Modal */}
-        {showTrainingModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowTrainingModal(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-auto p-6 md:p-8 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold text-gray-900">Add training event</h3>
-                  <p className="text-sm text-gray-600">Create a session with topic, mode, time, and notes.</p>
+        <Dialog open={showTrainingModal} onOpenChange={setShowTrainingModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add training event</DialogTitle>
+              <DialogDescription>Create a session with topic, mode, time, and notes.</DialogDescription>
+            </DialogHeader>
+            <PermissionGuard require={['training:create']} fallback={<p className="text-red-600">You do not have permission to create training events.</p>}>
+              <form onSubmit={handleCreateTraining} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-800">Topic</label>
+                  <input
+                    className="input-field"
+                    placeholder="e.g., Onboarding 101"
+                    required
+                    value={trainingForm.topic}
+                    onChange={(e) => setTrainingForm((f) => ({ ...f, topic: e.target.value }))}
+                  />
                 </div>
-                <button onClick={() => setShowTrainingModal(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
-              </div>
 
-              <PermissionGuard require={['training:create']} fallback={<p className="text-red-600">You do not have permission to create training events.</p>}>
-                <form onSubmit={handleCreateTraining} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-800">Topic</label>
+                    <label className="text-sm font-medium text-gray-800">Mode</label>
                     <input
                       className="input-field"
-                      placeholder="e.g., Onboarding 101"
-                      required
-                      value={trainingForm.topic}
-                      onChange={(e) => setTrainingForm((f) => ({ ...f, topic: e.target.value }))}
+                      placeholder="virtual or onsite"
+                      value={trainingForm.mode}
+                      onChange={(e) => setTrainingForm((f) => ({ ...f, mode: e.target.value }))}
                     />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Mode</label>
-                      <input
-                        className="input-field"
-                        placeholder="virtual or onsite"
-                        value={trainingForm.mode}
-                        onChange={(e) => setTrainingForm((f) => ({ ...f, mode: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Scheduled at</label>
-                      <input
-                        type="datetime-local"
-                        className="input-field"
-                        value={trainingForm.scheduled_at}
-                        onChange={(e) => setTrainingForm((f) => ({ ...f, scheduled_at: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Duration (minutes)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        className="input-field"
-                        placeholder="60"
-                        value={trainingForm.duration_minutes}
-                        onChange={(e) => setTrainingForm((f) => ({ ...f, duration_minutes: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-800">Notes</label>
-                    <textarea
+                    <label className="text-sm font-medium text-gray-800">Scheduled at</label>
+                    <input
+                      type="datetime-local"
                       className="input-field"
-                      rows="3"
-                      placeholder="Key outcomes, audience, or materials"
-                      value={trainingForm.notes}
-                      onChange={(e) => setTrainingForm((f) => ({ ...f, notes: e.target.value }))}
+                      value={trainingForm.scheduled_at}
+                      onChange={(e) => setTrainingForm((f) => ({ ...f, scheduled_at: e.target.value }))}
                     />
                   </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setShowTrainingModal(false)} className="btn-secondary">Cancel</button>
-                    <button type="submit" className="btn-primary">Save event</button>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Duration (minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="input-field"
+                      placeholder="60"
+                      value={trainingForm.duration_minutes}
+                      onChange={(e) => setTrainingForm((f) => ({ ...f, duration_minutes: e.target.value }))}
+                    />
                   </div>
-                </form>
-              </PermissionGuard>
-            </div>
-          </div>
-        )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-800">Notes</label>
+                  <Textarea
+                    rows="3"
+                    placeholder="Key outcomes, audience, or materials"
+                    value={trainingForm.notes}
+                    onChange={(e) => setTrainingForm((f) => ({ ...f, notes: e.target.value }))}
+                  />
+                </div>
+
+                <DialogFooter className="pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowTrainingModal(false)}>Cancel</Button>
+                  <Button type="submit">Save event</Button>
+                </DialogFooter>
+              </form>
+            </PermissionGuard>
+          </DialogContent>
+        </Dialog>
 
         {/* KPI Snapshot Modal */}
-        {showKpiModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowKpiModal(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-auto p-6 md:p-8 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold text-gray-900">Add KPI snapshot</h3>
-                  <p className="text-sm text-gray-600">Capture period start/end and the three core metrics.</p>
+        <Dialog open={showKpiModal} onOpenChange={setShowKpiModal}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Add KPI snapshot</DialogTitle>
+              <DialogDescription>Capture period start/end and the three core metrics.</DialogDescription>
+            </DialogHeader>
+            <PermissionGuard require={['kpi:create']} fallback={<p className="text-red-600">You do not have permission to create KPI snapshots.</p>}>
+              <form onSubmit={handleCreateKpi} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Period start</label>
+                    <input
+                      type="date"
+                      className="input-field"
+                      required
+                      value={kpiForm.period_start}
+                      onChange={(e) => setKpiForm((f) => ({ ...f, period_start: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Period end</label>
+                    <input
+                      type="date"
+                      className="input-field"
+                      required
+                      value={kpiForm.period_end}
+                      onChange={(e) => setKpiForm((f) => ({ ...f, period_end: e.target.value }))}
+                    />
+                  </div>
                 </div>
-                <button onClick={() => setShowKpiModal(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
-              </div>
 
-              <PermissionGuard require={['kpi:create']} fallback={<p className="text-red-600">You do not have permission to create KPI snapshots.</p>}>
-                <form onSubmit={handleCreateKpi} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Period start</label>
-                      <input
-                        type="date"
-                        className="input-field"
-                        required
-                        value={kpiForm.period_start}
-                        onChange={(e) => setKpiForm((f) => ({ ...f, period_start: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Period end</label>
-                      <input
-                        type="date"
-                        className="input-field"
-                        required
-                        value={kpiForm.period_end}
-                        onChange={(e) => setKpiForm((f) => ({ ...f, period_end: e.target.value }))}
-                      />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Duplication rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="input-field"
+                      placeholder="12.5"
+                      value={kpiForm.duplication_rate}
+                      onChange={(e) => setKpiForm((f) => ({ ...f, duplication_rate: e.target.value }))}
+                    />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Avg onboarding (weeks)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="input-field"
+                      placeholder="3.2"
+                      value={kpiForm.average_onboarding_weeks}
+                      onChange={(e) => setKpiForm((f) => ({ ...f, average_onboarding_weeks: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-800">Collaboration index</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="input-field"
+                      placeholder="78"
+                      value={kpiForm.collaboration_index}
+                      onChange={(e) => setKpiForm((f) => ({ ...f, collaboration_index: e.target.value }))}
+                    />
+                  </div>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Duplication rate (%)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input-field"
-                        placeholder="12.5"
-                        value={kpiForm.duplication_rate}
-                        onChange={(e) => setKpiForm((f) => ({ ...f, duplication_rate: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Avg onboarding (weeks)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input-field"
-                        placeholder="3.2"
-                        value={kpiForm.average_onboarding_weeks}
-                        onChange={(e) => setKpiForm((f) => ({ ...f, average_onboarding_weeks: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-800">Collaboration index</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input-field"
-                        placeholder="78"
-                        value={kpiForm.collaboration_index}
-                        onChange={(e) => setKpiForm((f) => ({ ...f, collaboration_index: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setShowKpiModal(false)} className="btn-secondary">Cancel</button>
-                    <button type="submit" className="btn-primary">Save snapshot</button>
-                  </div>
-                </form>
-              </PermissionGuard>
-            </div>
-          </div>
-        )}
+                <DialogFooter className="pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowKpiModal(false)}>Cancel</Button>
+                  <Button type="submit">Save snapshot</Button>
+                </DialogFooter>
+              </form>
+            </PermissionGuard>
+          </DialogContent>
+        </Dialog>
 
         {/* Toast */}
         {toast && (
@@ -732,20 +727,14 @@ export default function Dashboard() {
         )}
 
         {/* Edit Knowledge Modal */}
-        {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowEditModal(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-auto p-6 md:p-8 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold text-gray-900">Edit knowledge item</h3>
-                  <p className="text-sm text-gray-600">Update title, summary, link, region, categories, tags, and status.</p>
-                </div>
-                <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
-              </div>
-
-              <PermissionGuard require={['knowledge:update', 'knowledge:update_own', 'knowledge:*']} fallback={<p className="text-red-600">You do not have permission to edit knowledge items.</p>}>
-                <form onSubmit={handleUpdate} className="space-y-5">
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Edit knowledge item</DialogTitle>
+              <DialogDescription>Update title, summary, link, region, categories, tags, and status.</DialogDescription>
+            </DialogHeader>
+            <PermissionGuard require={['knowledge:update', 'knowledge:update_own', 'knowledge:*']} fallback={<p className="text-red-600">You do not have permission to edit knowledge items.</p>}>
+              <form onSubmit={handleUpdate} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-800">Title</label>
@@ -770,8 +759,7 @@ export default function Dashboard() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-800">Summary</label>
-                    <textarea
-                      className="input-field"
+                    <Textarea
                       placeholder="Brief synopsis that matches the PDF guidance."
                       rows="3"
                       value={editForm.summary}
@@ -856,31 +844,24 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary">Cancel</button>
-                    <button type="submit" className="btn-primary">Save changes</button>
-                  </div>
-                </form>
-              </PermissionGuard>
-            </div>
-          </div>
-        )}
+                <DialogFooter className="pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
+                  <Button type="submit">Save changes</Button>
+                </DialogFooter>
+              </form>
+            </PermissionGuard>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Knowledge Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowCreateModal(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-auto p-6 md:p-8 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold text-gray-900">Add knowledge item</h3>
-                  <p className="text-sm text-gray-600">Capture title, summary, type, link, region, categories, tags, and status.</p>
-                </div>
-                <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
-              </div>
-
-              <PermissionGuard require={['knowledge:create']} fallback={<p className="text-red-600">You do not have permission to create knowledge items.</p>}>
-                <form onSubmit={handleCreate} className="space-y-5">
+        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Add knowledge item</DialogTitle>
+              <DialogDescription>Capture title, summary, type, link, region, categories, tags, and status.</DialogDescription>
+            </DialogHeader>
+            <PermissionGuard require={['knowledge:create']} fallback={<p className="text-red-600">You do not have permission to create knowledge items.</p>}>
+              <form onSubmit={handleCreate} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-800">Title</label>
@@ -905,8 +886,7 @@ export default function Dashboard() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-800">Summary</label>
-                    <textarea
-                      className="input-field"
+                    <Textarea
                       placeholder="Brief synopsis that matches the PDF guidance."
                       rows="3"
                       value={form.summary}
@@ -1013,15 +993,14 @@ export default function Dashboard() {
                     </PermissionGuard>
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">Cancel</button>
-                    <button type="submit" className="btn-primary">Save item</button>
-                  </div>
-                </form>
-              </PermissionGuard>
-            </div>
-          </div>
-        )}
+                <DialogFooter className="pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                  <Button type="submit">Save item</Button>
+                </DialogFooter>
+              </form>
+            </PermissionGuard>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

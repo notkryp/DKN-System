@@ -1,17 +1,15 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import MetricCard from '../components/MetricCard'
-import { 
-  BookOpenIcon, 
-  UserGroupIcon, 
-  FlagIcon, 
-  ChartBarIcon,
-  BookmarkIcon,
-  AcademicCapIcon
-} from '@heroicons/react/24/outline'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import { Spinner } from '../components/ui/spinner'
+import { Button } from '../components/ui/button'
+import { TrendingUp, BookOpen, Users, Flag, Target, Share2, ArrowUpRight } from 'lucide-react'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+
+const COLORS = ['#9333ea', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
 export default function DashboardOverview() {
   const { user, userAccount, loading } = useAuth()
@@ -27,14 +25,12 @@ export default function DashboardOverview() {
     totalFlags: 0,
     totalKpis: 0
   })
-  const [statusData, setStatusData] = useState({})
-  const [regionData, setRegionData] = useState({})
+  const [statusData, setStatusData] = useState([])
+  const [regionData, setRegionData] = useState([])
   const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login')
-    }
+    if (!loading && !user) navigate('/login')
   }, [user, loading, navigate])
 
   useEffect(() => {
@@ -53,235 +49,206 @@ export default function DashboardOverview() {
         const training = trainingRes.data || []
         const bookmarks = bookmarksRes.data || []
 
-        // Calculate status breakdown
         const statusBreakdown = {}
         knowledge.forEach(item => {
           statusBreakdown[item.status] = (statusBreakdown[item.status] || 0) + 1
         })
-        setStatusData(statusBreakdown)
 
-        // Calculate region breakdown
+        const statusArray = Object.entries(statusBreakdown).map(([name, value]) => ({
+          name: name.replace(/_/g, ' ').charAt(0).toUpperCase() + name.replace(/_/g, ' ').slice(1),
+          value
+        }))
+        setStatusData(statusArray)
+
         const regionBreakdown = {}
         knowledge.forEach(item => {
           const region = item.region_code || 'Unknown'
           regionBreakdown[region] = (regionBreakdown[region] || 0) + 1
         })
-        setRegionData(regionBreakdown)
 
-        // Fetch flags if user has permission
+        const regionArray = Object.entries(regionBreakdown).map(([name, value]) => ({
+          name,
+          value
+        }))
+        setRegionData(regionArray)
+
         let flagsCount = 0
         if (['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)) {
           const flagsRes = await api.get('/governance/flags').catch(() => ({ data: [] }))
           flagsCount = flagsRes.data?.length || 0
         }
 
-        // Fetch KPIs if user has permission
         let kpisCount = 0
         if (['TopManager', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)) {
-          const kpisRes = await api.get('/kpi/snapshots').catch(() => ({ data: [] }))
+          const kpisRes = await api.get('/kpi').catch(() => ({ data: [] }))
           kpisCount = kpisRes.data?.length || 0
         }
 
         setStats({
           totalKnowledge: knowledge.length,
-          publishedKnowledge: knowledge.filter(k => k.status === 'published').length,
-          inReviewKnowledge: knowledge.filter(k => k.status === 'in_review').length,
-          draftKnowledge: knowledge.filter(k => k.status === 'draft').length,
+          publishedKnowledge: statusBreakdown['published'] || 0,
+          inReviewKnowledge: statusBreakdown['in_review'] || 0,
+          draftKnowledge: statusBreakdown['draft'] || 0,
           totalTraining: training.length,
           totalBookmarks: bookmarks.length,
           totalFlags: flagsCount,
           totalKpis: kpisCount
         })
       } catch (error) {
-        console.error('Error fetching stats:', error)
+        console.error('Failed to fetch dashboard stats:', error)
       } finally {
         setLoadingStats(false)
       }
     }
 
     fetchStats()
-  }, [user, userAccount])
+  }, [user, userAccount?.role_code])
 
-  const canViewGovernance = userAccount && ['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)
-  const canViewKpi = userAccount && ['TopManager', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount?.role_code)
-
-  if (loading || !user) {
+  if (loading || loadingStats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <Spinner className="h-12 w-12 mx-auto" />
+          <p className="text-gray-500">Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
+  const StatCard = ({ icon: Icon, label, value, color = 'purple' }) => (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">{label}</p>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-purple-100">
+            <Icon className="w-6 h-6 text-purple-600" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="space-y-8">
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Knowledge Items"
-          value={stats.totalKnowledge}
-          link="/knowledge"
-          linkText="VIEW KNOWLEDGE BUCKET"
-          icon={BookOpenIcon}
-          color="blue"
-        />
-        
-        <MetricCard
-          title="Training Events"
-          value={stats.totalTraining}
-          link="/training"
-          linkText="VIEW TRAINING"
-          icon={AcademicCapIcon}
-          color="green"
-        />
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900">Welcome back, {user?.email?.split('@')[0]}! 👋</h2>
+        <p className="text-gray-500 mt-2">Here's your knowledge management dashboard</p>
+      </div>
 
-        <MetricCard
-          title="My Bookmarks"
-          value={stats.totalBookmarks}
-          link="/bookmarks"
-          linkText="VIEW BOOKMARKS"
-          icon={BookmarkIcon}
-          color="purple"
-        />
-
-        {canViewGovernance && (
-          <MetricCard
-            title="Flagged Items"
-            value={stats.totalFlags}
-            link="/governance"
-            linkText="VIEW GOVERNANCE"
-            icon={FlagIcon}
-            color="orange"
-          />
-        )}
-
-        {canViewKpi && (
-          <MetricCard
-            title="KPI Snapshots"
-            value={stats.totalKpis}
-            link="/kpi"
-            linkText="VIEW REPORTS"
-            icon={ChartBarIcon}
-            color="indigo"
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={BookOpen} label="Total Knowledge Items" value={stats.totalKnowledge} />
+        <StatCard icon={Users} label="Training Events" value={stats.totalTraining} />
+        <StatCard icon={Target} label="My Bookmarks" value={stats.totalBookmarks} />
+        {userAccount?.role_code && ['GovernanceCouncilMember', 'KnowledgeSupervisor', 'SystemAdmin'].includes(userAccount.role_code) && (
+          <StatCard icon={Flag} label="Flagged Items" value={stats.totalFlags} />
         )}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status Bar Chart */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Knowledge by Status</h2>
-          {loadingStats ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          ) : Object.keys(statusData).length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={Object.entries(statusData).map(([status, count]) => ({
-                name: status.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-                count: count
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  cursor={{ fill: '#f9fafb' }}
-                />
-                <Bar dataKey="count" fill="#9333ea" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-500 text-center py-8">No data available</p>
-          )}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Content Status</CardTitle>
+            <CardDescription>Distribution of knowledge items by status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={statusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem'
+                    }}
+                  />
+                  <Bar dataKey="value" fill="#9333ea" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No data available</div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Region Pie Chart */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Knowledge by Region</h2>
-          {loadingStats ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          ) : Object.keys(regionData).length > 0 ? (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Published</span>
+                  <Badge variant="success">{stats.publishedKnowledge}</Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">In Review</span>
+                  <Badge variant="default">{stats.inReviewKnowledge}</Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Draft</span>
+                  <Badge variant="warning">{stats.draftKnowledge}</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {regionData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Knowledge Distribution by Region</CardTitle>
+            <CardDescription>Geographic spread of content items</CardDescription>
+          </CardHeader>
+          <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={Object.entries(regionData).map(([region, count]) => ({
-                    name: region,
-                    value: count
-                  }))}
+                  data={regionData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {Object.entries(regionData).map((entry, index) => {
-                    const colors = ['#9333ea', '#a855f7', '#7c3aed', '#c084fc', '#6b21a8', '#d8b4fe']
-                    return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                  })}
+                  {regionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-500 text-center py-8">No data available</p>
-          )}
-        </div>
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Activity Line Chart */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Activity Trend</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={[
-            { month: 'Jan', knowledge: stats.totalKnowledge * 0.7, training: stats.totalTraining * 0.6 },
-            { month: 'Feb', knowledge: stats.totalKnowledge * 0.8, training: stats.totalTraining * 0.7 },
-            { month: 'Mar', knowledge: stats.totalKnowledge * 0.85, training: stats.totalTraining * 0.85 },
-            { month: 'Apr', knowledge: stats.totalKnowledge * 0.9, training: stats.totalTraining * 0.9 },
-            { month: 'May', knowledge: stats.totalKnowledge, training: stats.totalTraining }
-          ]}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} />
-            <Tooltip 
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-            />
-            <Legend />
-            <Line type="monotone" dataKey="knowledge" stroke="#9333ea" strokeWidth={2} dot={{ fill: '#9333ea', r: 4 }} name="Knowledge Items" />
-            <Line type="monotone" dataKey="training" stroke="#c084fc" strokeWidth={2} dot={{ fill: '#c084fc', r: 4 }} name="Training Events" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Stats</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-3xl font-bold text-purple-600">{stats.publishedKnowledge}</p>
-            <p className="text-sm text-gray-600 mt-1">Published</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button variant="outline" className="justify-start" onClick={() => navigate('/knowledge')}>
+              <BookOpen className="w-4 h-4 mr-2" />
+              Browse Knowledge
+            </Button>
+            <Button variant="outline" className="justify-start" onClick={() => navigate('/training')}>
+              <Share2 className="w-4 h-4 mr-2" />
+              View Training
+            </Button>
+            <Button className="justify-start" onClick={() => navigate('/kpi')}>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              View Reports
+            </Button>
           </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-3xl font-bold text-purple-500">{stats.inReviewKnowledge}</p>
-            <p className="text-sm text-gray-600 mt-1">In Review</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-3xl font-bold text-purple-400">{stats.draftKnowledge}</p>
-            <p className="text-sm text-gray-600 mt-1">Drafts</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-3xl font-bold text-purple-700">{stats.totalTraining}</p>
-            <p className="text-sm text-gray-600 mt-1">Training Events</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

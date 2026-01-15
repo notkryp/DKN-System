@@ -159,6 +159,17 @@ CREATE TABLE IF NOT EXISTS kpi_report_snapshots (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- User feedback
+CREATE TABLE IF NOT EXISTS feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES user_accounts(id) ON DELETE CASCADE,
+  feedback_type TEXT DEFAULT 'general', -- general | bug | feature
+  message TEXT NOT NULL,
+  status TEXT DEFAULT 'submitted', -- submitted | in_progress | under_review | acknowledged | resolved
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- Triggers to keep updated_at in sync
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
@@ -178,6 +189,10 @@ FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
 
 CREATE TRIGGER set_training_events_updated_at
 BEFORE UPDATE ON training_events
+FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+
+CREATE TRIGGER set_feedback_updated_at
+BEFORE UPDATE ON feedback
 FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
 
 -- Auto-create user_accounts on signup
@@ -218,6 +233,7 @@ ALTER TABLE training_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpi_report_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tag_values ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
 
 -- Policies: Users manage themselves
 CREATE POLICY "Users can view themselves" ON user_accounts FOR SELECT USING (auth.uid() = id);
@@ -281,6 +297,16 @@ CREATE POLICY "Auth update training participants" ON training_participants FOR U
 -- KPI snapshots (TopManager role ideally; simplified to authenticated read and creator insert)
 CREATE POLICY "Auth select kpi" ON kpi_report_snapshots FOR SELECT USING (true);
 CREATE POLICY "Creator insert kpi" ON kpi_report_snapshots FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+-- Feedback
+CREATE POLICY "Auth insert feedback" ON feedback FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Self or admin read feedback" ON feedback FOR SELECT USING (
+  auth.uid() = user_id OR 
+  EXISTS (SELECT 1 FROM user_accounts WHERE id = auth.uid() AND role_code IN ('SystemAdmin', 'TopManager'))
+);
+CREATE POLICY "Admin update feedback" ON feedback FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM user_accounts WHERE id = auth.uid() AND role_code IN ('SystemAdmin', 'TopManager'))
+);
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS knowledge_items_owner_idx ON knowledge_items(owner_id);

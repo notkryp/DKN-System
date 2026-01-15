@@ -11,6 +11,7 @@ import lookupsRoutes from './routes/lookups.js'
 import trainingRoutes from './routes/training.js'
 import kpiRoutes from './routes/kpi.js'
 import userRoutes from './routes/users.js'
+import feedbackRoutes from './routes/feedback.js'
 
 dotenv.config()
 
@@ -79,6 +80,7 @@ app.use('/api/lookups', lookupsRoutes)
 app.use('/api/training', trainingRoutes)
 app.use('/api/kpi', kpiRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/feedback', feedbackRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,112 +1,166 @@
-import { useState } from 'react'
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import api from '../lib/api'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { Badge } from '../components/ui/badge'
+import { MessageSquare, Send, ThumbsUp, Clock } from 'lucide-react'
 
 export default function Feedback() {
-  const [form, setForm] = useState({ subject: '', message: '' })
-  const [submitted, setSubmitted] = useState(false)
+  const { user, userAccount } = useAuth()
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackType, setFeedbackType] = useState('general')
+  const [submitting, setSubmitting] = useState(false)
+  const [feedbackList, setFeedbackList] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    fetchFeedback()
+  }, [])
+
+  const fetchFeedback = async () => {
+    try {
+      const { data } = await api.get('/feedback')
+      setFeedbackList(data || [])
+    } catch (error) {
+      console.error('Failed to fetch feedback:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // In a real app, this would send to an API
-    console.log('Feedback submitted:', form)
-    setSubmitted(true)
-    setTimeout(() => {
-      setSubmitted(false)
-      setForm({ subject: '', message: '' })
-    }, 3000)
+    setSubmitting(true)
+    try {
+      await api.post('/feedback', {
+        feedback_type: feedbackType,
+        message: feedbackText
+      })
+      setFeedbackText('')
+      await fetchFeedback()
+      alert('Thank you for your feedback!')
+    } catch (error) {
+      console.error('Failed to submit feedback:', error)
+      alert('Failed to submit feedback. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const statusColors = {
+    'In Progress': 'default',
+    'Under Review': 'warning',
+    'Acknowledged': 'success',
+    'Resolved': 'secondary'
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Feedback</h1>
-        <p className="text-gray-600 mt-1">Share your thoughts and suggestions with us</p>
+      <div className="flex items-center gap-3">
+        <MessageSquare className="w-8 h-8 text-purple-600" />
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Feedback</h1>
+          <p className="text-gray-500 mt-1">Share your thoughts and help us improve</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Feedback Form */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Submit Feedback</h2>
-          
-          {submitted ? (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-purple-800 mb-2">Thank you!</h3>
-              <p className="text-purple-700">Your feedback has been submitted successfully.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <input
-                  type="text"
-                  required
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="What's this about?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                <textarea
-                  required
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows="6"
-                  placeholder="Share your feedback, suggestions, or report issues..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-medium"
+      <Card>
+        <CardHeader>
+          <CardTitle>Submit Feedback</CardTitle>
+          <CardDescription>Tell us what you think or report an issue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={feedbackType === 'general' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFeedbackType('general')}
               >
-                Submit Feedback
-              </button>
-            </form>
-          )}
-        </div>
+                General
+              </Button>
+              <Button
+                type="button"
+                variant={feedbackType === 'bug' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFeedbackType('bug')}
+              >
+                Bug Report
+              </Button>
+              <Button
+                type="button"
+                variant={feedbackType === 'feature' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFeedbackType('feature')}
+              >
+                Feature Request
+              </Button>
+            </div>
+            <div>
+              <Textarea
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Share your feedback..."
+                className="min-h-[120px]"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              <Send className="w-4 h-4 mr-2" />
+              {submitting ? 'Submitting...' : 'Submit Feedback'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-        {/* Info Section */}
-        <div className="space-y-6">
-          <div className="bg-purple-50 rounded-lg shadow-md p-6 border border-purple-100">
-            <ChatBubbleLeftRightIcon className="w-12 h-12 text-purple-600 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">We Value Your Input</h3>
-            <p className="text-gray-600 mb-4">
-              Your feedback helps us improve the Digital Knowledge Network. Whether it's a bug report, 
-              feature request, or general suggestion, we want to hear from you.
-            </p>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Feedback</h2>
+        {loading ? (
+          <Card>
+            <CardContent className="pt-6 text-center py-8">
+              <p className="text-gray-500">Loading feedback...</p>
+            </CardContent>
+          </Card>
+        ) : feedbackList.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6 text-center py-8">
+              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500">No feedback yet. Be the first to share!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {feedbackList.map((item) => (
+              <Card key={item.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Badge variant="outline">{item.feedback_type || 'General'}</Badge>
+                        <Badge variant={statusColors[item.status] || 'secondary'}>{item.status || 'Submitted'}</Badge>
+                      </div>
+                      <CardDescription className="text-base text-gray-900 mt-2">
+                        {item.message}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Quick Tips</h3>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
-                <span>Be specific about the issue or suggestion</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
-                <span>Include steps to reproduce if reporting a bug</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
-                <span>Share your use case when requesting features</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
-                <span>Check existing announcements before reporting</span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
