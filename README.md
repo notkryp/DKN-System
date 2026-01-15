@@ -1,14 +1,26 @@
-# Mobile Web Component
+# Digital Knowledge Network (DKN)
 
-A full-stack mobile-responsive web application built with React, Tailwind CSS, Node.js, Express, and Supabase.
+A comprehensive role-based knowledge management platform with governance, training, KPIs, and bookmarks. Built with React 18, Tailwind CSS, Node.js/Express, and Supabase.
 
 ## Features
 
-- React 18 with Vite
-- Tailwind CSS for responsive design
-- Node.js/Express REST API
-- Supabase for database and authentication
-- Mobile-first responsive design
+- **Modern UI** with purple-accent design, sidebar navigation, and header user dropdown
+- **Role-Based Access Control** (RBAC) - 6 user roles with granular permissions
+- **Knowledge Management** - Create, update, delete, and search knowledge items
+- **Governance** - Flag outdated items for council review
+- **Training & Adoption** - Schedule and track training sessions
+- **KPI Tracking** - Monitor organizational performance metrics
+- **Bookmarks** - Save knowledge items for quick access
+- **Responsive Design** - Mobile-first with Tailwind CSS
+- **Real-time Dashboard** - Metrics cards, charts (Bar, Pie, Line), and activity trends
+- **User Administration** - Manage roles, regions, and access
+
+## Tech Stack
+
+- **Frontend**: React 18, Vite, Tailwind CSS, React Router v6
+- **Backend**: Node.js, Express, Supabase (PostgreSQL)
+- **UI Components**: Heroicons, Recharts
+- **Authentication**: Supabase Auth with JWT
 
 ## Setup
 

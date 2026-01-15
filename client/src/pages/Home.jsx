@@ -12,28 +12,28 @@ export default function Home() {
   const { user } = useAuth()
 
   return (
-    <div className="min-h-[calc(100vh-theme(spacing.32))] bg-gray-50">
-      <section className="bg-gradient-to-r from-primary-700 to-indigo-800 text-white py-20">
+    <div className="min-h-[calc(100vh-theme(spacing.32))] bg-slate-50">
+      <section className="bg-purple-600 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <p className="text-sm uppercase tracking-[0.25em] text-primary-100">Digital Knowledge Network</p>
+            <p className="text-sm uppercase tracking-[0.25em] text-purple-100">Digital Knowledge Network</p>
             <h1 className="text-4xl md:text-5xl font-bold leading-tight">One hub for knowledge, governance, and training</h1>
-            <p className="text-lg text-primary-100">
+            <p className="text-lg text-purple-100">
               Align content creation, validation, training, and KPI tracking in a single workspace built to mirror the PDF blueprint.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               {!user && (
                 <>
-                  <Link to="/register" className="bg-white text-primary-700 hover:bg-primary-50 font-semibold py-3 px-6 rounded-lg transition">
+                  <Link to="/register" className="bg-white text-purple-700 hover:bg-purple-50 font-semibold py-3 px-6 rounded-lg transition">
                     Create account
                   </Link>
-                  <Link to="/login" className="border border-white/70 text-white hover:bg-white hover:text-primary-700 font-semibold py-3 px-6 rounded-lg transition">
+                  <Link to="/login" className="border-2 border-white text-white hover:bg-white hover:text-purple-700 font-semibold py-3 px-6 rounded-lg transition">
                     Sign in
                   </Link>
                 </>
               )}
               {user && (
-                <Link to="/dashboard" className="bg-white text-primary-700 hover:bg-primary-50 font-semibold py-3 px-6 rounded-lg transition">
+                <Link to="/dashboard" className="bg-white text-purple-700 hover:bg-purple-50 font-semibold py-3 px-6 rounded-lg transition">
                   Go to dashboard
                 </Link>
               )}

@@ -106,7 +106,7 @@ export default function AdminDashboard() {
         </div>
 
         {message && (
-          <div className={`p-4 rounded-lg ${message.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          <div className={`p-4 rounded-lg ${message.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'}`}>
             {message}
           </div>
         )}
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((u) => (
-                    <tr key={u.id} className={editingId === u.id ? 'bg-blue-50' : ''}>
+                    <tr key={u.id} className={editingId === u.id ? 'bg-purple-50' : ''}>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{u.email}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">{u.username}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">{u.region_code}</td>
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
                           </select>
                         ) : (
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            u.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                            u.status === 'active' ? 'bg-purple-100 text-purple-700' :
                             u.status === 'inactive' ? 'bg-gray-100 text-gray-700' :
                             'bg-red-100 text-red-700'
                           }`}>
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-sm space-x-2">
                         {editingId === u.id ? (
                           <>
-                            <button onClick={saveEdit} className="text-emerald-600 hover:text-emerald-800 font-medium">Save</button>
+                            <button onClick={saveEdit} className="text-purple-600 hover:text-purple-800 font-medium">Save</button>
                             <button onClick={cancelEdit} className="text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
                           </>
                         ) : (
